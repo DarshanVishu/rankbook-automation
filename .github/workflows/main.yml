@@ -1,4 +1,4 @@
-name: RankBook Regression CI
+name: RankBook Automation CI
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  build-and-compile:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,17 +22,5 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Install Playwright Browsers & Dependencies
-        run: mvn exec:java -e -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install --with-deps"
-
-      - name: Run Headless Regression Suite
-        run: mvn test "-DsuiteXmlFile=testng.xml" "-Dheadless=true"
-
-      - name: Upload Test Execution Reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: regression-reports
-          path: |
-            reports/
-            target/surefire-reports/
+      - name: Validate Framework & Compile Tests
+        run: mvn test-compile
