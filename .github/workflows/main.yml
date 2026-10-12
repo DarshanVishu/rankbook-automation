@@ -1,18 +1,21 @@
-name: RankBook Automation CI
+name: RankBook Automation CI & Report Publisher
 
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
-  build-and-compile:
+  build-and-report:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Source Code
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -22,5 +25,21 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Validate Framework & Compile Tests
+      - name: Compile and Validate Framework
         run: mvn test-compile
+
+      - name: Stage Report Files for Deployment
+        run: |
+          mkdir -p public
+          if [ -d "reports" ] && [ "$(ls -A reports 2>/dev/null)" ]; then
+            cp -r reports/* public/
+          else
+            echo "<!DOCTYPE html><html><head><title>RankBook Test Automation</title></head><body style='font-family:sans-serif;padding:2rem;'><h1>RankBook Automation Pipeline</h1><p>Framework compiled successfully. Execution reports will display here after scheduled runs.</p></body></html>" > public/index.html
+          fi
+
+      - name: Deploy Reports to GitHub Pages Branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          publish_branch: gh-pages
