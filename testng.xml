@@ -1,0 +1,28 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
+<suite name="RankBook Regression Suite" verbose="1">
+    <listeners>
+        <listener class-name="com.rankbook.framework.listeners.TestListener" />
+    </listeners>
+
+    <test name="LMS Tests">
+        <classes>
+            <class name="com.rankbook.lms.tests.LmsStudentLoginTest" />
+            <class name="com.rankbook.lms.tests.LmsStudentDashboardTest" />
+        </classes>
+    </test>
+
+    <test name="CRM Tests">
+        <classes>
+            <class name="com.rankbook.crm.tests.CrmLoginTest" />
+            <class name="com.rankbook.crm.tests.CrmLeadManagementTest" />
+            <class name="com.rankbook.crm.tests.CrmKanbanPipelineTest" />
+        </classes>
+    </test>
+
+    <test name="CRM to LMS E2E Flows">
+        <classes>
+            <class name="com.rankbook.e2e.tests.CrmEnrollmentToLmsLoginTest" />
+            <class name="com.rankbook.e2e.tests.FastLeadSeedingToLmsPlaywrightTest" />
+        </classes>
+    </test>
+</suite>

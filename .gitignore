@@ -1,0 +1,9 @@
+﻿target/
+bin/
+test-output/
+reports/
+*.class
+*.log
+.settings/
+.classpath
+.project
