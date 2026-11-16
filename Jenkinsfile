@@ -13,14 +13,9 @@ pipeline {
             description: 'Run browsers in headless mode'
         )
         string(
-            name: 'CRM_URL',
-            defaultValue: 'http://localhost:3001',
-            description: 'RankBook CRM URL'
-        )
-        string(
-            name: 'LMS_URL',
-            defaultValue: 'http://localhost:3001',
-            description: 'RankBook LMS URL'
+            name: 'BASE_URL',
+            defaultValue: 'http://localhost:3000',
+            description: 'Target LMS/CRM URL (change to http://localhost:3001 if running on 3001)'
         )
         string(
             name: 'SUPABASE_URL',
@@ -30,7 +25,6 @@ pipeline {
     }
 
     environment {
-        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = '1'
         ALLURE_RESULTS_DIR = 'target/allure-results'
     }
 
@@ -47,21 +41,21 @@ pipeline {
             }
         }
 
-        stage('Verify Toolchain & Suites') {
+        stage('Pre-Flight Server Check') {
             steps {
                 script {
                     if (isUnix()) {
-                        sh '''
+                        sh """
                             java -version
                             mvn -version
-                            ls -la src/test/resources/ || true
-                        '''
+                            curl -sf ${params.BASE_URL.trim()} > /dev/null || (echo "ERROR: App is not running at ${params.BASE_URL}. Start Next.js first." && exit 1)
+                        """
                     } else {
-                        bat '''
+                        bat """
                             java -version
                             call mvn -version
-                            dir src\\test\\resources
-                        '''
+                            curl -sf ${params.BASE_URL.trim()} > NUL || (echo ERROR: App is not running at ${params.BASE_URL}. Start Next.js first. && exit /b 1)
+                        """
                     }
                 }
             }
@@ -74,8 +68,8 @@ pipeline {
                     def mvnCmd = "mvn clean test " +
                                  "${suiteArg} " +
                                  "-Dheadless=${params.HEADLESS} " +
-                                 "-DcrmUrl=${params.CRM_URL.trim()} " +
-                                 "-DlmsUrl=${params.LMS_URL.trim()} " +
+                                 "-DbaseUrl=${params.BASE_URL.trim()} " +
+                                 "-Durl=${params.BASE_URL.trim()} " +
                                  "-DsupabaseUrl=${params.SUPABASE_URL.trim()} " +
                                  "-Dallure.results.directory=${ALLURE_RESULTS_DIR}"
 
