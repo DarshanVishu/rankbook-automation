@@ -2,16 +2,10 @@ pipeline {
     agent any
 
     parameters {
-        choice(
+        string(
             name: 'SUITE_XML',
-            choices: [
-                'src/test/resources/testng.xml',
-                'src/test/resources/testng-smoke.xml',
-                'src/test/resources/testng-crm.xml',
-                'src/test/resources/testng-lms.xml',
-                'src/test/resources/testng-all.xml'
-            ],
-            description: 'Select the combined CRM + LMS TestNG Suite XML to execute'
+            defaultValue: 'src/test/resources/testng.xml',
+            description: 'Path to TestNG XML (e.g. src/test/resources/testng.xml)'
         )
         booleanParam(
             name: 'HEADLESS',
@@ -53,18 +47,20 @@ pipeline {
             }
         }
 
-        stage('Verify Toolchain') {
+        stage('Verify Toolchain & Suites') {
             steps {
                 script {
                     if (isUnix()) {
                         sh '''
                             java -version
                             mvn -version
+                            ls -la src/test/resources/ || true
                         '''
                     } else {
                         bat '''
                             java -version
-                            mvn -version
+                            call mvn -version
+                            dir src\\test\\resources
                         '''
                     }
                 }
@@ -74,8 +70,9 @@ pipeline {
         stage('Execute Unified CRM & LMS Suite') {
             steps {
                 script {
+                    def suiteArg = fileExists(params.SUITE_XML.trim()) ? "-DsuiteXmlFile=${params.SUITE_XML.trim()}" : ""
                     def mvnCmd = "mvn clean test " +
-                                 "-DsuiteXmlFile=${params.SUITE_XML} " +
+                                 "${suiteArg} " +
                                  "-Dheadless=${params.HEADLESS} " +
                                  "-DcrmUrl=${params.CRM_URL.trim()} " +
                                  "-DlmsUrl=${params.LMS_URL.trim()} " +
@@ -85,7 +82,7 @@ pipeline {
                     if (isUnix()) {
                         sh "${mvnCmd}"
                     } else {
-                        bat "${mvnCmd}"
+                        bat "call ${mvnCmd}"
                     }
                 }
             }
@@ -101,7 +98,9 @@ pipeline {
                             mkdir -p target/allure-results
                             cp -r allure-results/* target/allure-results/
                         fi
-                        mvn io.qameta.allure:allure-maven:2.12.0:report
+                        if [ -d "target/allure-results" ]; then
+                            mvn io.qameta.allure:allure-maven:2.12.0:report
+                        fi
                     '''
                 } else {
                     bat '''
@@ -109,14 +108,16 @@ pipeline {
                             if not exist target\\allure-results mkdir target\\allure-results
                             xcopy /E /I /Y allure-results target\\allure-results >nul
                         )
-                        mvn io.qameta.allure:allure-maven:2.12.0:report
+                        if exist target\\allure-results (
+                            call mvn io.qameta.allure:allure-maven:2.12.0:report
+                        )
                     '''
                 }
             }
 
             junit allowEmptyResults: true, testResults: 'target/surefire-reports/*.xml'
 
-            archiveArtifacts artifacts: 'target/allure-report/**, target/playwright-traces/**, target/surefire-reports/**',
+            archiveArtifacts artifacts: 'target/site/allure-maven-plugin/**, target/playwright-traces/**, target/surefire-reports/**',
                              allowEmptyArchive: true
         }
     }
