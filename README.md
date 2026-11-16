@@ -180,7 +180,7 @@ mvn allure:serve
 
 ## Author
 
-**Darsh** — QA Automation & Platform Engineer
+**Darshan Vishu** — QA Automation | Software Development Engineer in Test - SDET
 
 * GitHub: [@DarshanVishu](https://github.com/DarshanVishu)
 
