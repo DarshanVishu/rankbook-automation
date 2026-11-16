@@ -1,4 +1,98 @@
-post {
+pipeline {
+    agent any
+
+    parameters {
+        choice(
+            name: 'SUITE_XML',
+            choices: [
+                'src/test/resources/testng.xml',
+                'src/test/resources/testng-smoke.xml',
+                'src/test/resources/testng-crm.xml',
+                'src/test/resources/testng-lms.xml',
+                'src/test/resources/testng-all.xml'
+            ],
+            description: 'Select the combined CRM + LMS TestNG Suite XML to execute'
+        )
+        booleanParam(
+            name: 'HEADLESS',
+            defaultValue: true,
+            description: 'Run browsers in headless mode'
+        )
+        string(
+            name: 'CRM_URL',
+            defaultValue: 'http://localhost:3001',
+            description: 'RankBook CRM URL'
+        )
+        string(
+            name: 'LMS_URL',
+            defaultValue: 'http://localhost:3001',
+            description: 'RankBook LMS URL'
+        )
+        string(
+            name: 'SUPABASE_URL',
+            defaultValue: 'http://localhost:54321',
+            description: 'Local Supabase API endpoint'
+        )
+    }
+
+    environment {
+        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = '1'
+        ALLURE_RESULTS_DIR = 'target/allure-results'
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '15'))
+        timeout(time: 45, unit: 'MINUTES')
+        timestamps()
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Verify Toolchain') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh '''
+                            java -version
+                            mvn -version
+                        '''
+                    } else {
+                        bat '''
+                            java -version
+                            mvn -version
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Execute Unified CRM & LMS Suite') {
+            steps {
+                script {
+                    def mvnCmd = "mvn clean test " +
+                                 "-DsuiteXmlFile=${params.SUITE_XML} " +
+                                 "-Dheadless=${params.HEADLESS} " +
+                                 "-DcrmUrl=${params.CRM_URL.trim()} " +
+                                 "-DlmsUrl=${params.LMS_URL.trim()} " +
+                                 "-DsupabaseUrl=${params.SUPABASE_URL.trim()} " +
+                                 "-Dallure.results.directory=${ALLURE_RESULTS_DIR}"
+
+                    if (isUnix()) {
+                        sh "${mvnCmd}"
+                    } else {
+                        bat "${mvnCmd}"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
         always {
             script {
                 if (isUnix()) {
@@ -26,3 +120,4 @@ post {
                              allowEmptyArchive: true
         }
     }
+}
