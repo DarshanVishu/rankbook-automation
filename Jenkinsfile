@@ -5,12 +5,13 @@ pipeline {
         choice(
             name: 'SUITE_XML',
             choices: [
-                'src/test/resources/testng-crm-smoke.xml',
-                'src/test/resources/testng-crm-web.xml',
-                'src/test/resources/testng-crm-rls-api.xml',
-                'src/test/resources/testng-crm-all.xml'
+                'src/test/resources/testng.xml',
+                'src/test/resources/testng-smoke.xml',
+                'src/test/resources/testng-crm.xml',
+                'src/test/resources/testng-lms.xml',
+                'src/test/resources/testng-all.xml'
             ],
-            description: 'Select the RankBook CRM TestNG Suite XML to execute'
+            description: 'Select the combined CRM + LMS TestNG Suite XML to execute'
         )
         booleanParam(
             name: 'HEADLESS',
@@ -18,14 +19,19 @@ pipeline {
             description: 'Run browsers in headless mode'
         )
         string(
-            name: 'BASE_URL',
+            name: 'CRM_URL',
             defaultValue: 'http://localhost:3001',
-            description: 'Target RankBook CRM Next.js URL (default: local port 3001)'
+            description: 'RankBook CRM URL'
+        )
+        string(
+            name: 'LMS_URL',
+            defaultValue: 'http://localhost:3001',
+            description: 'RankBook LMS URL'
         )
         string(
             name: 'SUPABASE_URL',
             defaultValue: 'http://localhost:54321',
-            description: 'Target Supabase API endpoint for RLS/API tests (default: local port 54321)'
+            description: 'Local Supabase API endpoint'
         )
     }
 
@@ -36,7 +42,7 @@ pipeline {
 
     options {
         buildDiscarder(logRotator(numToKeepStr: '15'))
-        timeout(time: 40, unit: 'MINUTES')
+        timeout(time: 45, unit: 'MINUTES')
         timestamps()
     }
 
@@ -47,36 +53,32 @@ pipeline {
             }
         }
 
-        stage('Verify Toolchain & Local Stack') {
+        stage('Verify Toolchain') {
             steps {
                 script {
-                    def checkCmd = """
-                        java -version
-                        mvn -version
-                        curl -s -o /dev/null -w "CRM App (3001): %{http_code}\\n" ${params.BASE_URL} || echo "Warning: CRM App not reachable at ${params.BASE_URL}"
-                        curl -s -o /dev/null -w "Supabase API (54321): %{http_code}\\n" ${params.SUPABASE_URL}/rest/v1/ || echo "Warning: Supabase API not reachable at ${params.SUPABASE_URL}"
-                    """
                     if (isUnix()) {
-                        sh checkCmd
-                    } else {
-                        bat """
+                        sh '''
                             java -version
                             mvn -version
-                            curl -s -o NUL -w "CRM App (3001): %%{http_code}\n" ${params.BASE_URL} || echo Warning: CRM App not reachable at ${params.BASE_URL}
-                            curl -s -o NUL -w "Supabase API (54321): %%{http_code}\n" ${params.SUPABASE_URL}/rest/v1/ || echo Warning: Supabase API not reachable at ${params.SUPABASE_URL}
-                        """
+                        '''
+                    } else {
+                        bat '''
+                            java -version
+                            mvn -version
+                        '''
                     }
                 }
             }
         }
 
-        stage('Execute CRM TestNG Suite') {
+        stage('Execute Unified CRM & LMS Suite') {
             steps {
                 script {
                     def mvnCmd = "mvn clean test " +
                                  "-DsuiteXmlFile=${params.SUITE_XML} " +
                                  "-Dheadless=${params.HEADLESS} " +
-                                 "-DbaseUrl=${params.BASE_URL.trim()} " +
+                                 "-DcrmUrl=${params.CRM_URL.trim()} " +
+                                 "-DlmsUrl=${params.LMS_URL.trim()} " +
                                  "-DsupabaseUrl=${params.SUPABASE_URL.trim()} " +
                                  "-Dallure.results.directory=${ALLURE_RESULTS_DIR}"
 
